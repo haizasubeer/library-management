@@ -12,10 +12,12 @@ DB_CONFIG = {
 
 def get_connection():
     try:
-        return mysql.connector.connect(**DB_CONFIG)
+        conn = mysql.connector.connect(**DB_CONFIG)
+        st.session_state.db_online = True
+        return conn
     except Error as e:
-        st.error(f"Connection failed: {e}")
-        raise
+        st.session_state.db_online = False
+        raise e
 
 def execute_query(query, params=()):
     conn = None
@@ -25,9 +27,9 @@ def execute_query(query, params=()):
         cursor.execute(query, params)
         conn.commit()
         return True
-    except Error as e:
+    except Exception as e:
         if conn: conn.rollback()
-        st.error(f"Query Error: {e}")
+        st.session_state.db_online = False
         return False
     finally:
         if conn and conn.is_connected(): conn.close()
@@ -38,9 +40,10 @@ def fetch_all(query, params=()):
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(query, params)
-        return cursor.fetchall()
-    except Error as e:
-        st.error(f"Fetch Error: {e}")
+        res = cursor.fetchall()
+        return res
+    except Exception as e:
+        st.session_state.db_online = False
         return []
     finally:
         if conn and conn.is_connected(): conn.close()
@@ -51,9 +54,10 @@ def fetch_one(query, params=()):
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(query, params)
-        return cursor.fetchone()
-    except Error as e:
-        st.error(f"Fetch Error: {e}")
+        res = cursor.fetchone()
+        return res
+    except Exception as e:
+        st.session_state.db_online = False
         return None
     finally:
         if conn and conn.is_connected(): conn.close()
@@ -63,6 +67,9 @@ def test_connection():
         conn = get_connection()
         if conn.is_connected():
             conn.close()
+            st.session_state.db_online = True
             return True
     except:
+        st.session_state.db_online = False
         return False
+    return False

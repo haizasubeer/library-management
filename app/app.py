@@ -208,9 +208,6 @@ with st.sidebar:
                     -webkit-text-fill-color: transparent;'>
             LibraryMS
         </div>
-        <div style='font-size: 0.8rem; color: #a0aec0; font-weight:600;'>
-            BCA Final Project
-        </div>
     </div>
     """, unsafe_allow_html=True)
 

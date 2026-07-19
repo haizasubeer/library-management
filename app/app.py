@@ -15,9 +15,9 @@ if "demo_mode" not in st.session_state:
 # Quick connection probe
 db_status = test_connection()
 
-# If DB is offline, automatically enable Demo Mode
-if not db_status:
-    st.session_state.demo_mode = True
+# Set DB status
+st.session_state.db_online = db_status
+
 
 # ── Self-Contained Mock Database Engine ────────────────────────
 def init_mock_data():

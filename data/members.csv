@@ -1,0 +1,24 @@
+import mysql.connector
+import pandas as pd
+
+# Connect to your local MySQL database
+conn = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="750796", # Replace with your local password
+    database="library_management"     # Replace with your local db name
+)
+
+# List the tables you want to export (matching your project modules)
+tables = ["books", "members", "borrow"]
+
+for table in tables:
+    try:
+        query = f"SELECT * FROM members"
+        df = pd.read_sql(query, conn)
+        df.to_csv(f"data/members.csv", index=False)
+        print(f"Exported members.csv successfully!")
+    except Exception as e:
+        print(f"Could not export memebers: {e}")
+
+conn.close()

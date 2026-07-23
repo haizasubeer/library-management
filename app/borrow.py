@@ -1,101 +1,166 @@
+"""
+==============================================================
+ Library Management System
+ File        : borrow.py
+ Description : Circulation & Borrowing module powered by CSV Database.
+==============================================================
+"""
+
 import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
-from db import fetch_all, fetch_one, execute_query
+from db import get_books_df, save_books_df, get_members_df, get_borrow_df, save_borrow_df
 
 FINE_PER_DAY = 5.00
 
-def get_active_borrows():
-    rows = fetch_all("""
-        SELECT br.Borrow_ID, m.Full_Name AS Member, b.Title AS Book,
-               br.Borrow_Date, br.Due_Date, br.Borrow_Status
-        FROM borrow_records br
-        JOIN members m ON br.Member_ID = m.Member_ID
-        JOIN books   b ON br.Book_ID   = b.Book_ID
-        WHERE br.Borrow_Status IN ('Borrowed','Overdue')
-        ORDER BY br.Due_Date
-    """)
-    return pd.DataFrame(rows) if rows else pd.DataFrame()
-
 def borrow_book(member_id, book_id, due_date):
-    member = fetch_one("SELECT Full_Name, Status FROM members WHERE Member_ID=%s", (member_id,))
-    if not member or member["Status"] != "Active":
-        st.error("Member not found or not Active.")
+    books_df = get_books_df()
+    members_df = get_members_df()
+    borrow_df = get_borrow_df()
+
+    # Validate Member
+    member = members_df[members_df["Member_ID"] == member_id]
+    if member.empty or member.iloc[0]["Status"] != "Active":
+        st.error("❌ Selected member is not found or not Active.")
         return False
-    book = fetch_one("SELECT Title, Available_Copies FROM books WHERE Book_ID=%s", (book_id,))
-    if not book or book["Available_Copies"] < 1:
-        st.error("Book not available.")
+
+    # Validate Book
+    book_idx = books_df[books_df["Book_ID"] == book_id].index
+    if len(book_idx) == 0:
+        st.error("❌ Book not found.")
         return False
-    ok = execute_query("""
-        INSERT INTO borrow_records (Member_ID,Book_ID,Borrow_Date,Due_Date,Borrow_Status)
-        VALUES (%s,%s,%s,%s,'Borrowed')
-    """, (member_id, book_id, date.today(), due_date))
-    if ok:
-        execute_query("UPDATE books SET Available_Copies=Available_Copies-1 WHERE Book_ID=%s", (book_id,))
-        st.success(f"'{book['Title']}' issued to {member['Full_Name']}!")
-    return ok
+
+    avail = int(books_df.loc[book_idx[0], "Available_Copies"])
+    if avail < 1:
+        st.error("❌ Selected book has zero available copies left.")
+        return False
+
+    # Update copies in books dataframe
+    books_df.loc[book_idx[0], "Available_Copies"] = avail - 1
+    save_books_df(books_df)
+
+    # Append borrow record
+    new_id = int(borrow_df["Borrow_ID"].max() + 1) if not borrow_df.empty and len(borrow_df) > 0 else 1
+
+    new_record = {
+        "Borrow_ID": new_id,
+        "Member_ID": int(member_id),
+        "Book_ID": int(book_id),
+        "Borrow_Date": str(date.today()),
+        "Due_Date": str(due_date),
+        "Return_Date": "",
+        "Fine_Amount": 0.0,
+        "Borrow_Status": "Borrowed"
+    }
+
+    borrow_df = pd.concat([borrow_df, pd.DataFrame([new_record])], ignore_index=True)
+    save_borrow_df(borrow_df)
+
+    book_title = books_df.loc[book_idx[0], "Title"]
+    member_name = member.iloc[0]["Full_Name"]
+    st.success(f"🎉 Book '{book_title}' issued successfully to {member_name}!")
+    return True
 
 def return_book(borrow_id):
-    rec = fetch_one("""
-        SELECT br.*, b.Title, m.Full_Name
-        FROM borrow_records br
-        JOIN books b ON br.Book_ID=b.Book_ID
-        JOIN members m ON br.Member_ID=m.Member_ID
-        WHERE br.Borrow_ID=%s
-    """, (borrow_id,))
-    if not rec:
-        st.error("Borrow record not found.")
+    books_df = get_books_df()
+    borrow_df = get_borrow_df()
+
+    rec_idx = borrow_df[borrow_df["Borrow_ID"] == borrow_id].index
+    if len(rec_idx) == 0:
+        st.error("❌ Borrow Record ID not found.")
         return False
-    if rec["Borrow_Status"] == "Returned":
-        st.error("Already returned.")
+
+    record = borrow_df.loc[rec_idx[0]]
+    if record["Borrow_Status"] == "Returned":
+        st.warning("⚠️ This record is already marked as Returned.")
         return False
+
+    # Calculate fine
     today = date.today()
-    due   = rec["Due_Date"]
-    fine  = max(0, (today - due).days) * FINE_PER_DAY if today > due else 0.0
-    ok = execute_query("""
-        UPDATE borrow_records
-        SET Return_Date=%s, Fine_Amount=%s, Borrow_Status='Returned'
-        WHERE Borrow_ID=%s
-    """, (today, fine, borrow_id))
-    if ok:
-        execute_query("UPDATE books SET Available_Copies=Available_Copies+1 WHERE Book_ID=%s",
-                      (rec["Book_ID"],))
-        if fine > 0:
-            st.warning(f"Returned! Fine: ₹{fine:.2f}")
-        else:
-            st.success("Returned on time. No fine.")
-    return ok
+    due_dt = date.fromisoformat(str(record["Due_Date"]))
+    fine = 0.0
+    if today > due_dt:
+        days_late = (today - due_dt).days
+        fine = float(days_late * FINE_PER_DAY)
+
+    # Update borrow record
+    borrow_df.loc[rec_idx[0], "Return_Date"] = str(today)
+    borrow_df.loc[rec_idx[0], "Fine_Amount"] = fine
+    borrow_df.loc[rec_idx[0], "Borrow_Status"] = "Returned"
+    save_borrow_df(borrow_df)
+
+    # Restore available copy in books
+    book_id = int(record["Book_ID"])
+    b_idx = books_df[books_df["Book_ID"] == book_id].index
+    if len(b_idx) > 0:
+        books_df.loc[b_idx[0], "Available_Copies"] = int(books_df.loc[b_idx[0], "Available_Copies"]) + 1
+        save_books_df(books_df)
+
+    if fine > 0:
+        st.warning(f"✅ Book Returned successfully! Overdue Fine Collected: ₹{fine:.2f}")
+    else:
+        st.success("✅ Book Returned on time! No fine charged.")
+    return True
 
 def render_borrow_page():
-    st.header("📖 Borrow & Return")
-    from members import get_active_members
+    st.markdown("<h2 style='color:#7f00ff;'>📖 Circulation Ledger</h2>", unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs(["Issue Book","Return Book","Active Borrows"])
+    tab1, tab2, tab3 = st.tabs(["📤 Issue Checkout", "📥 Return Check-in", "📋 Active Transactions"])
+
+    books_df = get_books_df()
+    members_df = get_members_df()
+    borrow_df = get_borrow_df()
 
     with tab1:
-        members = get_active_members()
-        books   = fetch_all("SELECT Book_ID, Title FROM books WHERE Available_Copies>0")
-        if not members or not books:
-            st.warning("No active members or available books.")
+        active_members = members_df[members_df["Status"] == "Active"]
+        avail_books = books_df[books_df["Available_Copies"] > 0]
+
+        if active_members.empty or avail_books.empty:
+            st.warning("⚠️ You need at least one Active Member and one Available Book to perform a checkout.")
         else:
-            mem_map  = {f"[{m['Member_ID']}] {m['Full_Name']}": m["Member_ID"] for m in members}
-            book_map = {f"[{b['Book_ID']}] {b['Title']}": b["Book_ID"] for b in books}
+            member_map = {f"[{row['Member_ID']}] {row['Full_Name']} ({row['Email']})": row["Member_ID"] for _, row in active_members.iterrows()}
+            book_map = {f"[{row['Book_ID']}] {row['Title']} (Avail: {row['Available_Copies']})": row["Book_ID"] for _, row in avail_books.iterrows()}
+
             with st.form("borrow_form", clear_on_submit=True):
-                sel_m = st.selectbox("Member", list(mem_map.keys()))
-                sel_b = st.selectbox("Book",   list(book_map.keys()))
-                due   = st.date_input("Due Date", value=date.today()+timedelta(days=14))
-                if st.form_submit_button("Issue Book"):
-                    borrow_book(mem_map[sel_m], book_map[sel_b], due)
+                sel_m = st.selectbox("Select Member *", list(member_map.keys()))
+                sel_b = st.selectbox("Select Book *", list(book_map.keys()))
+                due_date = st.date_input("Scheduled Return Due Date", value=date.today() + timedelta(days=14))
+
+                if st.form_submit_button("📤 Checkout & Issue Book"):
+                    if borrow_book(member_map[sel_m], book_map[sel_b], due_date):
+                        st.rerun()
 
     with tab2:
-        bid = st.number_input("Borrow ID", min_value=1, step=1)
-        if st.button("Return Book"):
-            return_book(int(bid))
+        active_borrows = borrow_df[borrow_df["Borrow_Status"].isin(["Borrowed", "Overdue"])]
+        if active_borrows.empty:
+            st.success("✨ All issued books are currently returned! No pending check-ins.")
+        else:
+            # Join with member and book title for dropdown selection
+            borrow_options = {}
+            for _, row in active_borrows.iterrows():
+                b_title = books_df[books_df["Book_ID"] == row["Book_ID"]]["Title"].values[0] if not books_df[books_df["Book_ID"] == row["Book_ID"]].empty else "Unknown Book"
+                m_name = members_df[members_df["Member_ID"] == row["Member_ID"]]["Full_Name"].values[0] if not members_df[members_df["Member_ID"] == row["Member_ID"]].empty else "Unknown Member"
+                label = f"ID #{row['Borrow_ID']} | Book: '{b_title}' → Member: {m_name} (Due: {row['Due_Date']})"
+                borrow_options[label] = int(row["Borrow_ID"])
+
+            sel_borrow_label = st.selectbox("Select Borrow Transaction to Return", list(borrow_options.keys()))
+            
+            if st.button("📥 Process Return Check-in"):
+                if return_book(borrow_options[sel_borrow_label]):
+                    st.rerun()
 
     with tab3:
-        df = get_active_borrows()
-        if df.empty:
-            st.success("No active borrows!")
+        if borrow_df.empty:
+            st.info("No borrow records registered.")
         else:
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            # Format combined table
+            merged = borrow_df.copy()
+            merged["Book_Title"] = merged["Book_ID"].apply(
+                lambda x: books_df[books_df["Book_ID"] == x]["Title"].values[0] if not books_df[books_df["Book_ID"] == x].empty else "Unknown"
+            )
+            merged["Member_Name"] = merged["Member_ID"].apply(
+                lambda x: members_df[members_df["Member_ID"] == x]["Full_Name"].values[0] if not members_df[members_df["Member_ID"] == x].empty else "Unknown"
+            )
             
+            display_df = merged[["Borrow_ID", "Member_Name", "Book_Title", "Borrow_Date", "Due_Date", "Return_Date", "Fine_Amount", "Borrow_Status"]]
+            st.dataframe(display_df, use_container_width=True, hide_index=True)

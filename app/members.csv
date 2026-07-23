@@ -1,0 +1,26 @@
+Member_ID,Full_Name,Gender,Email,Phone,Address,Membership_Type,Status
+1,Aarav Sharma,Male,aarav.sharma@email.com,9876543210,City Address,Standard,Active
+2,Priya Patel,Female,priya.patel@email.com,9123456780,City Address,Premium,Active
+3,Rohit Kumar,Male,rohit.kumar@email.com,9988776655,City Address,Student,Active
+4,Ananya Singh,Female,ananya.singh@email.com,9845123456,City Address,Standard,Active
+5,Vikram Mehta,Male,vikram.mehta@email.com,9911223344,City Address,Premium,Active
+6,Diya Iyer,Female,diya.iyer@email.com,9812345670,City Address,Student,Active
+7,Arjun Das,Male,arjun.das@email.com,9745632101,City Address,Standard,Inactive
+8,Kavya Nair,Female,kavya.nair@email.com,9632587410,City Address,Premium,Active
+9,Rohan Joshi,Male,rohan.joshi@email.com,9514728360,City Address,Student,Suspended
+10,Meera Reddy,Female,meera.reddy@email.com,9423617850,City Address,Standard,Active
+11,Aditya Rao,Male,aditya.rao@email.com,9356817420,City Address,Premium,Active
+12,Sanya Malhotra,Female,sanya.m@email.com,9245173680,City Address,Student,Active
+13,Kabir Verma,Male,kabir.v@email.com,9156283740,City Address,Standard,Active
+14,Isha Choudhury,Female,isha.c@email.com,9067341520,City Address,Premium,Inactive
+15,Devansh Gill,Male,devansh.gill@email.com,8956231470,City Address,Student,Active
+16,Riya Kapoor,Female,riya.k@email.com,8845129630,City Address,Standard,Active
+17,Manish Gupta,Male,manish.g@email.com,8736251490,City Address,Premium,Active
+18,Sneha Pillai,Female,sneha.p@email.com,8625143790,City Address,Student,Suspended
+19,Yash Vardhan,Male,yash.v@email.com,8514263790,City Address,Standard,Active
+20,Anjali Sen,Female,anjali.sen@email.com,8403152690,City Address,Premium,Active
+21,Karan Saxena,Male,karan.s@email.com,8312049560,City Address,Student,Active
+22,Tanvi Mishra,Female,tanvi.m@email.com,8201938470,City Address,Standard,Active
+23,Vivek Banerjee,Male,vivek.b@email.com,8192837460,City Address,Premium,Active
+24,Shreya Ghoshal,Female,shreya.g@email.com,8081726354,City Address,Student,Inactive
+25,Rahul Hegde,Male,rahul.h@email.com,7976859403,City Address,Standard,Active

@@ -1,60 +1,67 @@
+"""
+==============================================================
+ Library Management System
+ File        : reports.py
+ Description : Analytics & Visualization module using Plotly & CSV.
+==============================================================
+"""
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from db import fetch_all, fetch_one
-
-def get_kpis():
-    return fetch_one("""
-        SELECT
-            (SELECT COUNT(*) FROM books)                           AS total_books,
-            (SELECT SUM(Available_Copies) FROM books)              AS available,
-            (SELECT COUNT(*) FROM members WHERE Status='Active')   AS members,
-            (SELECT COUNT(*) FROM borrow_records
-             WHERE Borrow_Status IN ('Borrowed','Overdue'))        AS borrowed,
-            (SELECT COUNT(*) FROM borrow_records
-             WHERE Borrow_Status='Overdue')                        AS overdue,
-            (SELECT COALESCE(SUM(Fine_Amount),0)
-             FROM borrow_records WHERE Borrow_Status='Returned')   AS fines
-    """) or {}
+from db import get_books_df, get_borrow_df, get_kpis
 
 def render_reports_page():
-    st.header("📊 Reports & Analytics")
+    st.markdown("<h2 style='color:#ffea00;'>📊 Reports & Analytics</h2>", unsafe_allow_html=True)
+    
     kpis = get_kpis()
-
-    col1,col2,col3,col4,col5 = st.columns(5)
-    col1.metric("Total Books",   kpis.get("total_books",0))
-    col2.metric("Available",     kpis.get("available",0))
-    col3.metric("Members",       kpis.get("members",0))
-    col4.metric("Borrowed",      kpis.get("borrowed",0))
-    col5.metric("Overdue",       kpis.get("overdue",0))
+    
+    # Display 5 KPI Cards
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("📘 Total Books", kpis["total_books"])
+    col2.metric("🟢 Available", kpis["available"])
+    col3.metric("👥 Active Members", kpis["members"])
+    col4.metric("📙 On Loan", kpis["borrowed"])
+    col5.metric("⚠️ Overdue", kpis["overdue"])
 
     st.markdown("---")
 
-    # Most borrowed books
-    rows = fetch_all("""
-        SELECT b.Title, COUNT(*) AS Borrows
-        FROM borrow_records br
-        JOIN books b ON br.Book_ID=b.Book_ID
-        GROUP BY b.Book_ID, b.Title
-        ORDER BY Borrows DESC LIMIT 10
-    """)
-    if rows:
-        df = pd.DataFrame(rows)
-        fig = px.bar(df, x="Borrows", y="Title", orientation="h",
-                     title="Top 10 Most Borrowed Books",
-                     color="Borrows", color_continuous_scale="Viridis")
-        st.plotly_chart(fig, use_container_width=True)
+    books_df = get_books_df()
+    borrow_df = get_borrow_df()
 
-    # Books by category
-    rows2 = fetch_all("""
-        SELECT c.Category_Name AS Category, COUNT(b.Book_ID) AS Books
-        FROM categories c LEFT JOIN books b ON c.Category_ID=b.Category_ID
-        GROUP BY c.Category_ID, c.Category_Name
-    """)
-    if rows2:
-        df2 = pd.DataFrame(rows2)
-        fig2 = px.pie(df2, names="Category", values="Books",
-                      title="Books by Category", hole=0.4)
-        st.plotly_chart(fig2, use_container_width=True)
+    col_chart1, col_chart2 = st.columns(2)
 
-    st.subheader(f"Total Fines Collected: ₹{float(kpis.get('fines',0)):,.2f}")
+    with col_chart1:
+        st.subheader("🥇 Top Borrowed Books")
+        if not borrow_df.empty and not books_df.empty:
+            merged = borrow_df.merge(books_df, on="Book_ID", how="inner")
+            counts = merged["Title"].value_counts().reset_index()
+            counts.columns = ["Title", "Borrows"]
+            counts = counts.head(10)
+
+            fig_bar = px.bar(
+                counts, x="Borrows", y="Title", orientation="h",
+                color="Borrows", color_continuous_scale="Plasma"
+            )
+            fig_bar.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0")
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.info("Insufficient borrow history data to plot chart.")
+
+    with col_chart2:
+        st.subheader("📦 Category Distribution")
+        if not books_df.empty:
+            cat_counts = books_df["Category"].value_counts().reset_index()
+            cat_counts.columns = ["Category", "Count"]
+
+            fig_pie = px.pie(
+                cat_counts, names="Category", values="Count",
+                hole=0.4, color_discrete_sequence=px.colors.sequential.Sunsetdark
+            )
+            fig_pie.update_layout(paper_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0")
+            st.plotly_chart(fig_pie, use_container_width=True)
+        else:
+            st.info("No category data found in books inventory.")
+
+    st.markdown("---")
+    st.subheader(f"💰 Total Library Fines Collected: ₹{kpis['fines']:,.2f}")

@@ -85,4 +85,4 @@ Your live URL (`https://...streamlit.app`) will be active globally!
 
 ## 📄 License & Credits
 
-Designed & developed for BCA Final Year Project & Portfolio demonstration.
+Designed & developed for internship Project & Portfolio demonstration.

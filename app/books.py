@@ -1,11 +1,3 @@
-"""
-==============================================================
- Library Management System
- File        : books.py
- Description : Books Management module powered by CSV Database.
-==============================================================
-"""
-
 import streamlit as st
 import pandas as pd
 from db import get_books_df, save_books_df

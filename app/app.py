@@ -1,12 +1,3 @@
-"""
-==============================================================
- Library Management System
- File        : app.py
- Description : Main Streamlit web application powered by CSV database.
-               Runs 100% serverless anywhere on Streamlit Cloud.
-==============================================================
-"""
-
 import streamlit as st
 from db import test_connection, get_kpis
 from books import render_books_page
@@ -16,7 +7,7 @@ from reports import render_reports_page
 
 st.set_page_config(page_title="Library MS", page_icon="📚", layout="wide")
 
-# ── Glowing Colorful CSS Styling ─────────────────────────────
+# Glowing Colorful CSS Styling
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
@@ -142,7 +133,7 @@ html, body, [class*="css"] {
 </style>
 """, unsafe_allow_html=True)
 
-# ── Sidebar Navigation ────────────────────────────────────────
+# Sidebar Navigation
 with st.sidebar:
     st.markdown("""
     <div style='text-align:center; padding: 25px 0 15px;'>
@@ -177,7 +168,7 @@ with st.sidebar:
         "📊 Reports & Analytics"
     ])
 
-# ── Page Routing ──────────────────────────────────────────────
+# Page Routing
 if page == "🏠 Home Dashboard":
     st.markdown("<h1 class='gradient-header'>📚 Library Management System</h1>", unsafe_allow_html=True)
     st.markdown("<p class='sub-banner'>Interactive digital space for library administration and performance reports.</p>", unsafe_allow_html=True)

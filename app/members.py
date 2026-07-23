@@ -1,11 +1,3 @@
-"""
-==============================================================
- Library Management System
- File        : members.py
- Description : Members Directory module powered by CSV Database.
-==============================================================
-"""
-
 import streamlit as st
 import pandas as pd
 from db import get_members_df, save_members_df

@@ -1,13 +1,3 @@
-"""
-==============================================================
- Library Management System
- File        : db.py
- Description : CSV Database Access Layer using Pandas.
-               Replaces MySQL to allow 100% zero-config deployment
-               on Streamlit Cloud.
-==============================================================
-"""
-
 import os
 import pandas as pd
 from datetime import date
@@ -41,7 +31,7 @@ def init_csv_files():
         ])
         df_borrow.to_csv(BORROW_CSV, index=False)
 
-# ── Data Loaders & Savers ──────────────────────────────────────
+# Data Loaders & Savers
 def get_books_df():
     init_csv_files()
     df = pd.read_csv(BOOKS_CSV, dtype={"ISBN": str, "Phone": str, "Shelf_Number": str})
@@ -71,7 +61,7 @@ def test_connection():
     init_csv_files()
     return True
 
-# ── KPI Helper ─────────────────────────────────────────────────
+# KPI Helper
 def get_kpis():
     init_csv_files()
     books_df = get_books_df()

@@ -1,11 +1,3 @@
-"""
-==============================================================
- Library Management System
- File        : reports.py
- Description : Analytics & Visualization module using Plotly & CSV.
-==============================================================
-"""
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px

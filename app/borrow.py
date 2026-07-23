@@ -1,11 +1,3 @@
-"""
-==============================================================
- Library Management System
- File        : borrow.py
- Description : Circulation & Borrowing module powered by CSV Database.
-==============================================================
-"""
-
 import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
